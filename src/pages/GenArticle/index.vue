@@ -8,10 +8,9 @@ import { get } from 'lodash-es'
 import { chatCompletions } from '@/chatapi/index'
 import { newsWriter2 } from '@/systemSet/index'
 import IconChatgpt from '@/components/SvgIcon/IconChatgpt.vue'
-import IconAdd from "@/components/SvgIcon/IconAdd.vue"
-import IconMore from "@/components/SvgIcon/IconMore.vue"
-
-const chatUserName = ref('chat-gpt')
+import IconAdd from '@/components/SvgIcon/IconAdd.vue'
+import IconMore from '@/components/SvgIcon/IconMore.vue'
+import { prompts } from '@/prompts/index'
 
 const stepList = {
   1: '请输入前置资料',
@@ -21,15 +20,27 @@ const stepList = {
   5: '结果是否满意（yes/no）',
 }
 
-const genParam = (msg: string): any => {
+const genParamFor = (msg: string): any => {
   return {
     messages: [
-      { role: 'assistant', content: newsWriter2 },
+      { ...prompts.文章生成器 },
       { role: 'user', content: msg },
     ],
     model: 'gpt-3.5-turbo',
     stream: false,
-    temperature: 0.3,
+    temperature: 0.8
+  }
+}
+
+const genParamFor2 = (msg: string): any => {
+  return {
+    messages: [
+      { ...prompts.生成关键信息 },
+      { role: 'user', content: msg },
+    ],
+    model: 'gpt-3.5-turbo',
+    stream: false,
+    temperature: 0.8
   }
 }
 
@@ -41,22 +52,37 @@ const chatList = ref<any>([])
 const message = ref('')
 const loading = ref(false)
 const curStep = ref<StepType>(1)
-
-const genChatMessage = (user: string, message: string): object => {
-  return { user, message, id: nanoid(4) }
-}
+const systemName = ref('chat-gpt')
+const userName = ref('Lee')
+const keyInfo = ref('')
 
 const onSend = async () => {
   loading.value = true
-  chatList.value.push(genChatMessage('lee', message.value))
+  chatList.value.push({
+    user: userName.value,
+    message: message.value,
+    isHtml: false,
+  })
   const msg = message.value
   message.value = ''
-  const { data, error } = await chatCompletions(genParam(msg))
+  const param: any = {
+    1: genParamFor2(msg),
+    2: genParamFor(keyInfo.value)
+  }
+  const { data, error } = await chatCompletions(param[curStep.value])
   if (data) {
     const msg = get(data, 'choices[0].message.content', '')
     const htmlMsg = msg.replace(/\n/g, '<br/>')
     console.log(htmlMsg)
-    chatList.value.push(genChatMessage(chatUserName.value, htmlMsg))
+    chatList.value.push({
+      user: systemName.value,
+      message: htmlMsg,
+      isHtml: true,
+    })
+    if (curStep.value) {
+      keyInfo.value = msg
+    }
+    curStep.value = 2
   } else {
     console.log(error)
   }
@@ -68,7 +94,13 @@ const onBack = () => {
 }
 
 onMounted(() => {
-  chatList.value.push(genChatMessage(chatUserName.value, stepList[curStep.value]))
+  chatList.value.push({
+    id: nanoid(4),
+    user: userName.value,
+    message: stepList[curStep.value],
+    isHtml: false
+  })
+  console.log(chatList.value);
 })
 </script>
 
@@ -90,21 +122,19 @@ onMounted(() => {
       <div class="right relative flex h-full max-w-full flex-1 overflow-hidden">
         <div class="flex h-full w-full max-w-full flex-1 flex-col bg-gray-800">
           <!-- header -->
-          <div
-            class="main-header"
-          >
-          <div></div>
-          <div>Article Generator</div>
-          <div>
-            <n-button @click="onBack">退出登录</n-button>
-          </div>
+          <div class="main-header">
+            <div></div>
+            <div>Article Generator</div>
+            <div>
+              <n-button @click="onBack">退出登录</n-button>
+            </div>
           </div>
           <!-- 聊天内容 -->
           <div class="message-wrap w-full overflow-auto" :style="{ height: `calc(100% - 196px)` }">
             <div v-for="o in chatList" :key="o.id" class="message-item flex text-white">
               <div class="mr-20px shrink-0 self-start">
                 <div
-                  v-if="o.user === chatUserName"
+                  v-if="o.isHtml"
                   class="relative p-1 rounded-sm h-[30px] w-[30px] text-white flex items-center justify-center"
                   style="background-color: rgb(25, 195, 125)"
                 >
@@ -118,8 +148,8 @@ onMounted(() => {
                   {{ `${o.user.slice(0, 2)}` }}
                 </div>
               </div>
-              <div v-show="o.user === 'lee'">{{ o.message }}</div>
-              <div v-show="o.user === chatUserName" v-html="o.message"></div>
+              <div v-show="!o.isHtml">{{ o.message }}</div>
+              <div v-show="o.isHtml" v-html="o.message"></div>
             </div>
           </div>
 
@@ -148,19 +178,19 @@ onMounted(() => {
 </template>
 <style lang="scss">
 .article-main {
-  background-color: rgba(52,53,65,1);
+  background-color: rgba(52, 53, 65, 1);
 }
 .left {
-  background-color: rgba(32,33,35,1);
+  background-color: rgba(32, 33, 35, 1);
   padding: 8px;
   .left-top {
-    border: 1px hsla(0,0%,100%,.2) solid;
+    border: 1px hsla(0, 0%, 100%, 0.2) solid;
     border-radius: 6px;
     padding: 8px 20px;
   }
   .left-bottom {
     height: 60px;
-    border-top: 1px solid  hsla(0,0%,100%,.2);
+    border-top: 1px solid hsla(0, 0%, 100%, 0.2);
   }
 }
 .message-wrap > :nth-child(even) {
@@ -181,9 +211,9 @@ onMounted(() => {
   align-items: center;
   height: 60px;
   padding: 0 20px;
-  background-color: rgba(52,53,65,1);
-  color: rgba(197,197,210);
+  background-color: rgba(52, 53, 65, 1);
+  color: rgba(197, 197, 210);
   border-bottom-width: 1px;
-  border-color: rgba(32,33,35,.5);
+  border-color: rgba(32, 33, 35, 0.5);
 }
 </style>
