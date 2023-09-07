@@ -1,12 +1,11 @@
 import OpenAI from 'openai'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 
-console.log(process.env)
-
 const openai = new OpenAI({
-  apiKey: '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',
+  apiKey: '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',
   httpAgent: new HttpsProxyAgent('http://127.0.0.1:7890'),
   dangerouslyAllowBrowser: true,
+  // baseURL: "http://20.222.195.246/v1"
 })
 
 export function chatCompletions(param: any): any {
@@ -19,3 +18,5 @@ export function chatCompletions(param: any): any {
       return { data: null, error: err }
     })
 }
+
+// export https_proxy=http://127.0.0.1:7890 http_proxy=http://127.0.0.1:7890 all_proxy=socks5://127.0.0.1:7890

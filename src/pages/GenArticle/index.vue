@@ -2,11 +2,9 @@
 import { onMounted, ref } from 'vue'
 import { NConfigProvider } from 'naive-ui'
 import { darkTheme } from 'naive-ui'
-import { useRouter } from 'vue-router'
 import { nanoid } from 'nanoid'
 import { get } from 'lodash-es'
 import { chatCompletions } from '@/chatapi/index'
-import { newsWriter2 } from '@/systemSet/index'
 import IconChatgpt from '@/components/SvgIcon/IconChatgpt.vue'
 import IconAdd from '@/components/SvgIcon/IconAdd.vue'
 import IconMore from '@/components/SvgIcon/IconMore.vue'
@@ -14,13 +12,10 @@ import { prompts } from '@/prompts/index'
 
 const stepList = {
   1: '请输入前置资料',
-  2: '请输入扮演的角色（多个用逗号分隔）',
-  3: '设置魔法（不需要则直接回车即可）',
-  4: '请补充章节资料（没有补充则采用前置资料）',
-  5: '结果是否满意（yes/no）',
+  2: '请输入补充材料，没有则点击发送继续...'
 }
 
-const genParamFor = (msg: string): any => {
+const genParamForArticle = (msg: string): any => {
   return {
     messages: [
       { ...prompts.文章生成器 },
@@ -32,21 +27,19 @@ const genParamFor = (msg: string): any => {
   }
 }
 
-const genParamFor2 = (msg: string): any => {
+const genParamForKeys = (msg: string): any => {
   return {
     messages: [
       { ...prompts.生成关键信息 },
       { role: 'user', content: msg },
     ],
     model: 'gpt-3.5-turbo',
-    stream: false,
+    stream: true,
     temperature: 0.8
   }
 }
 
-type StepType = 1 | 2 | 3 | 4 | 5
-
-const { push } = useRouter()
+type StepType = 1 | 2
 
 const chatList = ref<any>([])
 const message = ref('')
@@ -66,41 +59,40 @@ const onSend = async () => {
   const msg = message.value
   message.value = ''
   const param: any = {
-    1: genParamFor2(msg),
-    2: genParamFor(keyInfo.value)
+    1: genParamForKeys(msg),
+    2: genParamForArticle(keyInfo.value)
   }
-  const { data, error } = await chatCompletions(param[curStep.value])
+  const { data } = await chatCompletions(param[curStep.value])
   if (data) {
     const msg = get(data, 'choices[0].message.content', '')
     const htmlMsg = msg.replace(/\n/g, '<br/>')
-    console.log(htmlMsg)
     chatList.value.push({
       user: systemName.value,
       message: htmlMsg,
       isHtml: true,
     })
-    if (curStep.value) {
-      keyInfo.value = msg
-    }
-    curStep.value = 2
-  } else {
-    console.log(error)
+    // if (curStep.value) {
+    //   keyInfo.value = msg
+    // }
+    // curStep.value += 1
+    // if (curStep.value > 2) {
+    //   curStep.value = 1
+    // }
   }
   loading.value = false
 }
 
-const onBack = () => {
-  push('/login')
+const onReset = () => {
+  curStep.value = 1
 }
 
 onMounted(() => {
   chatList.value.push({
     id: nanoid(4),
-    user: userName.value,
+    user: systemName.value,
     message: stepList[curStep.value],
     isHtml: false
   })
-  console.log(chatList.value);
 })
 </script>
 
@@ -126,7 +118,7 @@ onMounted(() => {
             <div></div>
             <div>Article Generator</div>
             <div>
-              <n-button @click="onBack">退出登录</n-button>
+              <n-button @click="onReset">重新开始</n-button>
             </div>
           </div>
           <!-- 聊天内容 -->
@@ -134,7 +126,7 @@ onMounted(() => {
             <div v-for="o in chatList" :key="o.id" class="message-item flex text-white">
               <div class="mr-20px shrink-0 self-start">
                 <div
-                  v-if="o.isHtml"
+                  v-if="o.user === systemName"
                   class="relative p-1 rounded-sm h-[30px] w-[30px] text-white flex items-center justify-center"
                   style="background-color: rgb(25, 195, 125)"
                 >

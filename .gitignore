@@ -3,3 +3,4 @@ dist-electron
 node_modules
 .git
 .DS_Store
+release

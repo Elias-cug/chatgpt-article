@@ -570,6 +570,11 @@
     "@types/node" "*"
     xmlbuilder ">=11.0.1"
 
+"@types/qs@^6.9.8":
+  version "6.9.8"
+  resolved "https://registry.npmmirror.com/@types/qs/-/qs-6.9.8.tgz#f2a7de3c107b89b441e071d5472e6b726b4adf45"
+  integrity sha512-u95svzDlTysU5xecFNTgfFG5RUWu1A9P0VzgpcIiGZA9iraHOdSzcxMxQ55DyeRaGCSxQi7LxXDI4rzq/MYfdg==
+
 "@types/responselike@^1.0.0":
   version "1.0.0"
   resolved "https://registry.npmmirror.com/@types/responselike/-/responselike-1.0.0.tgz#251f4fe7d154d2bad125abe1b429b23afd262e29"
