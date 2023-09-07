@@ -3,16 +3,32 @@ import { onMounted, ref } from 'vue'
 import { NConfigProvider } from 'naive-ui'
 import { darkTheme } from 'naive-ui'
 import { nanoid } from 'nanoid'
-import { get } from 'lodash-es'
-import { chatCompletions } from '@/chatapi/index'
+import { openai } from '@/chatapi/index'
 import IconChatgpt from '@/components/SvgIcon/IconChatgpt.vue'
 import IconAdd from '@/components/SvgIcon/IconAdd.vue'
 import IconMore from '@/components/SvgIcon/IconMore.vue'
 import { prompts } from '@/prompts/index'
 
+const state = {
+  1: "请输入前置资料",
+  2: "请补充章节资料，没有则点击发送继续..."
+}
+
 const stepList = {
   1: '请输入前置资料',
   2: '请输入补充材料，没有则点击发送继续...'
+}
+
+const genParamForKeys = (msg: string): any => {
+  return {
+    messages: [
+      { ...prompts.生成关键信息 },
+      { role: 'user', content: msg },
+    ],
+    model: 'gpt-3.5-turbo',
+    stream: true,
+    temperature: 0.8
+  }
 }
 
 const genParamForArticle = (msg: string): any => {
@@ -22,15 +38,15 @@ const genParamForArticle = (msg: string): any => {
       { role: 'user', content: msg },
     ],
     model: 'gpt-3.5-turbo',
-    stream: false,
+    stream: true,
     temperature: 0.8
   }
 }
 
-const genParamForKeys = (msg: string): any => {
+const genParamForFinish = (msg: string): any => {
   return {
     messages: [
-      { ...prompts.生成关键信息 },
+      { ...prompts.文章补充 },
       { role: 'user', content: msg },
     ],
     model: 'gpt-3.5-turbo',
@@ -60,30 +76,61 @@ const onSend = async () => {
   message.value = ''
   const param: any = {
     1: genParamForKeys(msg),
-    2: genParamForArticle(keyInfo.value)
+    2: genParamForArticle(keyInfo.value + message.value),
   }
-  const { data } = await chatCompletions(param[curStep.value])
-  if (data) {
-    const msg = get(data, 'choices[0].message.content', '')
-    const htmlMsg = msg.replace(/\n/g, '<br/>')
-    chatList.value.push({
-      user: systemName.value,
-      message: htmlMsg,
-      isHtml: true,
-    })
-    // if (curStep.value) {
-    //   keyInfo.value = msg
-    // }
-    // curStep.value += 1
-    // if (curStep.value > 2) {
-    //   curStep.value = 1
-    // }
+  const data = await chatCompletions(param[curStep.value])
+  if (curStep.value === 1) {
+    keyInfo.value = data.message.replace(/<br\/>/g, '').replace(/-/g, '');
   }
+  if (curStep.value === 2) {
+    await chatCompletions(genParamForFinish(data.message), true)
+  }
+  curStep.value += 1
+
+  if (curStep.value > 2) {
+    curStep.value = 1
+  }
+
   loading.value = false
 }
 
 const onReset = () => {
   curStep.value = 1
+}
+
+async function chatCompletions(param: any, flag = false) {
+  if (!flag) {
+    chatList.value.push({
+      user: systemName.value,
+      message: "",
+      isHtml: false,
+    })
+  } else {
+    const len = chatList.value.length
+    const n = chatList.value[len - 1]
+    chatList.value.splice(len, 1, {
+      user: systemName.value,
+      message: n.message + "<br/><br/>",
+      isHtml: false,
+    })
+  }
+  const len = chatList.value.length
+  const stream: any = await openai.chat.completions.create(param);
+  for await (const part of stream) {
+    let msg = part.choices[0]?.delta?.content || ''
+    msg = msg.replace(/\n/g, '<br/>')
+    const n = chatList.value[len - 1]
+    chatList.value.splice(len-1, 1, {
+      user: systemName.value,
+      message: n.message + msg,
+      isHtml: true,
+    })
+    const ele = document.querySelector("#content")
+    if (ele) {
+      ele.scrollTop = 100000
+    }
+  }
+  return chatList.value[len - 1]
 }
 
 onMounted(() => {
@@ -122,7 +169,7 @@ onMounted(() => {
             </div>
           </div>
           <!-- 聊天内容 -->
-          <div class="message-wrap w-full overflow-auto" :style="{ height: `calc(100% - 196px)` }">
+          <div id="content" class="message-wrap w-full overflow-auto" :style="{ height: `calc(100% - 196px)` }">
             <div v-for="o in chatList" :key="o.id" class="message-item flex text-white">
               <div class="mr-20px shrink-0 self-start">
                 <div
@@ -154,7 +201,7 @@ onMounted(() => {
                 v-model:value="message"
                 class="w-full bg-gray-700 mr-40px"
                 type="textarea"
-                :placeholder="stepList[curStep]"
+                :placeholder="state[curStep]"
                 :autosize="{
                   minRows: 1,
                   maxRows: 5,
