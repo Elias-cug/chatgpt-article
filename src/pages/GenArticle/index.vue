@@ -27,7 +27,7 @@ const genParamForKeys = (msg: string): any => {
     ],
     model: 'gpt-3.5-turbo',
     stream: true,
-    temperature: 0.8
+    temperature: 1
   }
 }
 
@@ -39,7 +39,7 @@ const genParamForArticle = (msg: string): any => {
     ],
     model: 'gpt-3.5-turbo',
     stream: true,
-    temperature: 0.8
+    temperature: 1
   }
 }
 
@@ -51,7 +51,7 @@ const genParamForFinish = (msg: string): any => {
     ],
     model: 'gpt-3.5-turbo',
     stream: true,
-    temperature: 0.8
+    temperature: 1
   }
 }
 

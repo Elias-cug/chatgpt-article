@@ -1,8 +1,9 @@
 import OpenAI from 'openai'
+import { chatgptKey } from "@/utils/key"
 // import { HttpsProxyAgent } from 'https-proxy-agent'
 
 export const openai = new OpenAI({
-  apiKey: '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',
+  apiKey: chatgptKey,
   // httpAgent: new HttpsProxyAgent('http://127.0.0.1:7890'),
   dangerouslyAllowBrowser: true,
   baseURL: "http://20.222.195.246/v1"

@@ -23,6 +23,7 @@
     "dev": "vite",
     "build:render": "cross-env VITE_SERVICE_ENV=dev vite build",
     "build": "vue-tsc --noEmit && yarn build:render && electron-builder",
+    "build:win": "vue-tsc --noEmit && yarn build:render && electron-builder --win --x64",
     "build:win32": "vue-tsc --noEmit && yarn build:render && electron-builder --win --ia32",
     "build:linux": "vue-tsc --noEmit && yarn build:render && electron-builder --linux --x64",
     "preview": "vite preview"

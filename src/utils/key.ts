@@ -1,0 +1,1 @@
+export const chatgptKey = "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"
