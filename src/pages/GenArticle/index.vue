@@ -108,7 +108,7 @@ async function chatCompletions(param: any, flag = false) {
   } else {
     const len = chatList.value.length
     const n = chatList.value[len - 1]
-    chatList.value.splice(len, 1, {
+    chatList.value.splice(len - 1, 1, {
       user: systemName.value,
       message: n.message + "<br/><br/>",
       isHtml: false,
