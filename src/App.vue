@@ -5,7 +5,9 @@ import { RouterView } from 'vue-router'
 
 <template>
   <div class="h-full">
-    <RouterView />
+    <n-message-provider>
+      <RouterView />
+    </n-message-provider>
   </div>
 </template>
 

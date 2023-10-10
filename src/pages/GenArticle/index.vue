@@ -5,53 +5,52 @@ import { darkTheme } from 'naive-ui'
 import { nanoid } from 'nanoid'
 import { openai } from '@/chatapi/index'
 import IconChatgpt from '@/components/SvgIcon/IconChatgpt.vue'
-import IconAdd from '@/components/SvgIcon/IconAdd.vue'
+// import IconAdd from '@/components/SvgIcon/IconAdd.vue'
 import IconMore from '@/components/SvgIcon/IconMore.vue'
-import { prompts } from '@/prompts/index'
+import { usePromptStore } from '@/store/promptStore'
+import ParamInputVue from './components/ParamInput.vue'
+
+const store = usePromptStore()
 
 const state = {
-  1: "请输入前置资料",
-  2: "请补充章节资料，没有则点击发送继续..."
+  1: '请输入前置资料',
+  2: '请补充章节资料，没有则点击发送继续...',
+  3: '如需补充，请点击发送进行补充'
 }
 
 const stepList = {
   1: '请输入前置资料',
-  2: '请输入补充材料，没有则点击发送继续...'
+  2: '请输入补充材料，没有则点击发送继续...',
+  3: '如需补充，请点击发送进行补充'
 }
 
 const genParamForKeys = (msg: string): any => {
   return {
-    messages: [
-      { ...prompts.生成关键信息 },
-      { role: 'user', content: msg },
-    ],
+    messages: [{ ...store.keyParam.prompt }, { role: 'user', content: msg }],
     model: 'gpt-3.5-turbo',
+    temperature: 1,
+    ...store.keyParam.otherParam,
     stream: true,
-    temperature: 1
   }
 }
 
 const genParamForArticle = (msg: string): any => {
   return {
-    messages: [
-      { ...prompts.文章生成器 },
-      { role: 'user', content: msg },
-    ],
+    messages: [{ ...store.articleParam.prompt }, { role: 'user', content: msg }],
     model: 'gpt-3.5-turbo',
+    temperature: 1,
+    ...store.articleParam.otherParam,
     stream: true,
-    temperature: 1
   }
 }
 
 const genParamForFinish = (msg: string): any => {
   return {
-    messages: [
-      { ...prompts.文章补充 },
-      { role: 'user', content: msg },
-    ],
+    messages: [{ ...store.summaryParam.prompt }, { role: 'user', content: msg }],
     model: 'gpt-3.5-turbo',
+    temperature: 1,
+    ...store.summaryParam.otherParam,
     stream: true,
-    temperature: 1
   }
 }
 
@@ -80,11 +79,12 @@ const onSend = async () => {
   }
   const data = await chatCompletions(param[curStep.value])
   if (curStep.value === 1) {
-    keyInfo.value = data.message.replace(/<br\/>/g, '').replace(/-/g, '');
+    keyInfo.value = data.message.replace(/<br\/>/g, '').replace(/-/g, '')
   }
   if (curStep.value === 2) {
     await chatCompletions(genParamForFinish(data.message), true)
   }
+  
   curStep.value += 1
 
   if (curStep.value > 2) {
@@ -95,6 +95,7 @@ const onSend = async () => {
 }
 
 const onReset = () => {
+  loading.value = false
   curStep.value = 1
 }
 
@@ -102,7 +103,7 @@ async function chatCompletions(param: any, flag = false) {
   if (!flag) {
     chatList.value.push({
       user: systemName.value,
-      message: "",
+      message: '',
       isHtml: false,
     })
   } else {
@@ -110,22 +111,22 @@ async function chatCompletions(param: any, flag = false) {
     const n = chatList.value[len - 1]
     chatList.value.splice(len - 1, 1, {
       user: systemName.value,
-      message: n.message + "<br/><br/>",
+      message: n.message + '<br/><br/>',
       isHtml: false,
     })
   }
   const len = chatList.value.length
-  const stream: any = await openai.chat.completions.create(param);
+  const stream: any = await openai.chat.completions.create(param)
   for await (const part of stream) {
     let msg = part.choices[0]?.delta?.content || ''
     msg = msg.replace(/\n/g, '<br/>')
     const n = chatList.value[len - 1]
-    chatList.value.splice(len-1, 1, {
+    chatList.value.splice(len - 1, 1, {
       user: systemName.value,
       message: n.message + msg,
       isHtml: true,
     })
-    const ele = document.querySelector("#content")
+    const ele = document.querySelector('#scrollBar .n-scrollbar-container')
     if (ele) {
       ele.scrollTop = 100000
     }
@@ -138,7 +139,7 @@ onMounted(() => {
     id: nanoid(4),
     user: systemName.value,
     message: stepList[curStep.value],
-    isHtml: false
+    isHtml: false,
   })
 })
 </script>
@@ -146,11 +147,12 @@ onMounted(() => {
 <template>
   <div class="article-main h-full">
     <n-config-provider class="h-full flex" :theme="darkTheme">
-      <div class="left h-full flex flex-col justify-between w-260px relative flex-shrink-0">
-        <div class="left-top mb-1 text-white flex gap-4px items-center cursor-pointer">
-          <n-icon size="30"><IconAdd /></n-icon>新会话
+      <div class="left h-full flex flex-col justify-between w-350px relative flex-shrink-0">
+        <div class="left-main flex-1 overflow-auto">
+          <n-scrollbar style="height: 100%" trigger="none">
+            <ParamInputVue />
+          </n-scrollbar>
         </div>
-        <div class="left-main flex-1"></div>
         <div class="left-bottom flex justify-between items-center px-8px">
           <div></div>
           <div class="grow"></div>
@@ -169,27 +171,29 @@ onMounted(() => {
             </div>
           </div>
           <!-- 聊天内容 -->
-          <div id="content" class="message-wrap w-full overflow-auto" :style="{ height: `calc(100% - 196px)` }">
-            <div v-for="o in chatList" :key="o.id" class="message-item flex text-white">
-              <div class="mr-20px shrink-0 self-start">
-                <div
-                  v-if="o.user === systemName"
-                  class="relative p-1 rounded-sm h-[30px] w-[30px] text-white flex items-center justify-center"
-                  style="background-color: rgb(25, 195, 125)"
-                >
-                  <IconChatgpt />
+          <div id="content" class="message-wrap w-full" :style="{ height: `calc(100% - 196px)` }">
+            <n-scrollbar id="scrollBar" style="height: 100%" trigger="none">
+              <div v-for="o in chatList" :key="o.id" class="message-item flex text-white">
+                <div class="mr-20px shrink-0 self-start">
+                  <div
+                    v-if="o.user === systemName"
+                    class="relative p-1 rounded-sm h-[30px] w-[30px] text-white flex items-center justify-center"
+                    style="background-color: rgb(25, 195, 125)"
+                  >
+                    <IconChatgpt />
+                  </div>
+                  <div
+                    v-else
+                    class="relative p-1 rounded-sm h-[30px] w-[30px] text-white flex items-center justify-center"
+                    style="background-color: #b93126"
+                  >
+                    {{ `${o.user.slice(0, 2)}` }}
+                  </div>
                 </div>
-                <div
-                  v-else
-                  class="relative p-1 rounded-sm h-[30px] w-[30px] text-white flex items-center justify-center"
-                  style="background-color: #b93126"
-                >
-                  {{ `${o.user.slice(0, 2)}` }}
-                </div>
+                <div v-show="!o.isHtml">{{ o.message }}</div>
+                <div v-show="o.isHtml" v-html="o.message"></div>
               </div>
-              <div v-show="!o.isHtml">{{ o.message }}</div>
-              <div v-show="o.isHtml" v-html="o.message"></div>
-            </div>
+            </n-scrollbar>
           </div>
 
           <!-- 输入框 -->
@@ -225,7 +229,7 @@ onMounted(() => {
   .left-top {
     border: 1px hsla(0, 0%, 100%, 0.2) solid;
     border-radius: 6px;
-    padding: 8px 20px;
+    padding: 6px 12px;
   }
   .left-bottom {
     height: 60px;

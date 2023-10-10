@@ -15,6 +15,9 @@ if (release().startsWith('6.1')) app.disableHardwareAcceleration()
 // 解决 electron 在win10 无消息通知的问题
 if (process.platform === 'win32') app.setAppUserModelId(app.getName())
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+require('electron-debug')({ showDevTools: false, isEnabled: true })
+
 if (!app.requestSingleInstanceLock()) {
   app.quit()
   process.exit(0)
